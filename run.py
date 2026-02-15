@@ -55,6 +55,7 @@ def post_to_webhook(webhook_url: str, token: str, items: list[dict]) -> str:
 
 def main():
     username = os.environ["X_USERNAME"].strip()
+    print("DEBUG username repr:", repr(username))
     webhook_url = os.environ["SHEETS_WEBHOOK_URL"].strip()
     token = os.environ["SHEETS_WEBHOOK_TOKEN"].strip()
 
