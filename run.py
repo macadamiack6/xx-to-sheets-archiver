@@ -20,8 +20,8 @@ def build_feed_urls(username: str) -> list[str]:
     username = username.strip().lstrip("@")
     return [f"{base}/{username}/rss" for base in NITTER_INSTANCES]
 
-def pick_entries(feed) -> list[dict]:
-    items = []
+def pick_entries(feed, username: str) -> list[dict]:
+    items = pick_entries(feed, username)
     for e in getattr(feed, "entries", []) or []:
         # Nitter RSS에서 보통 link가 트윗 URL(또는 프록시 URL)로 들어옴
         link = (e.get("link") or "").strip()
