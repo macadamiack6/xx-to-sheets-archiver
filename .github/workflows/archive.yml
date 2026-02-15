@@ -1,0 +1,60 @@
+name: Archive X to Google Sheets
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"   # 15분마다 (UTC 기준)
+  workflow_dispatch:
+
+permissions:
+  contents: write   # 아래 "heartbeat commit" 때문에 필요
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install deps
+        run: pip install -r requirements.txt
+
+      - name: Run archiver
+        env:
+          SHEETS_WEBHOOK_URL: ${{ secrets.SHEETS_WEBHOOK_URL }}
+          SHEETS_WEBHOOK_TOKEN: ${{ secrets.SHEETS_WEBHOOK_TOKEN }}
+          X_USERNAME: ${{ secrets.X_USERNAME }}
+        run: python run.py
+
+      # 60일 비활성화 방지용: 하루 1번만 파일 갱신+커밋
+      # (공개 저장소는 60일 활동 없으면 스케줄이 자동 비활성화될 수 있음) 
+      - name: Heartbeat (daily)
+        run: |
+          python - <<'PY'
+          from datetime import datetime, timezone
+          import pathlib
+          p = pathlib.Path("heartbeat.txt")
+          today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+          old = p.read_text().strip() if p.exists() else ""
+          if old != today:
+              p.write_text(today)
+              print("UPDATED")
+          else:
+              print("NOCHANGE")
+          PY
+
+      - name: Commit heartbeat if changed
+        run: |
+          if git diff --quiet; then
+            echo "No changes"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add heartbeat.txt
+          git commit -m "chore: heartbeat"
+          git push
