@@ -28,12 +28,31 @@ jobs:
       - name: Install deps
         run: pip install -r requirements.txt
 
-      - name: Run archiver
+      - name: Run archiver (multi accounts)
         env:
           SHEETS_WEBHOOK_URL: ${{ secrets.SHEETS_WEBHOOK_URL }}
           SHEETS_WEBHOOK_TOKEN: ${{ secrets.SHEETS_WEBHOOK_TOKEN }}
-          X_USERNAME: ${{ secrets.X_USERNAME }}
-        run: python run.py
+          X_USERNAME: ${{ secrets.X_USERNAME }}  # 예: NASA,OpenAI
+        run: |
+          echo "RAW_X_USERNAME=${X_USERNAME}"
+          python -c "import os; print('DEBUG env repr:', repr(os.environ.get('X_USERNAME','')))"
+
+          # 쉼표/줄바꿈 구분 모두 처리
+          python - <<'PY'
+          import os, re, subprocess, sys
+          raw = os.environ.get("X_USERNAME","")
+          users = [u.strip().lstrip("@") for u in re.split(r"[,\n]+", raw) if u.strip()]
+          print("PARSED_USERS:", users)
+
+          for u in users:
+              print("==> Fetching:", u)
+              env = os.environ.copy()
+              env["X_USERNAME"] = u
+              r = subprocess.run([sys.executable, "run.py"], env=env)
+              if r.returncode != 0:
+                  raise SystemExit(r.returncode)
+          PY
+
 
       # 60일 비활성화 방지용: 하루 1번만 파일 갱신+커밋
       # (공개 저장소는 60일 활동 없으면 스케줄이 자동 비활성화될 수 있음) 
